@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-function Home() {
+export const HomePage = () => {
   return (
     <div className="container mx-auto">
       <header className="App-header">
@@ -15,5 +15,3 @@ function Home() {
     </div>
   );
 }
-
-export default Home; 

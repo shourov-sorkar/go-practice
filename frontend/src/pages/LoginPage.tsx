@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-function Login() {
+export const LoginPage = () => {
   return (
     <div className="container mx-auto mt-8">
       <div className="max-w-md mx-auto bg-white p-8 rounded shadow-md">
@@ -40,5 +40,3 @@ function Login() {
     </div>
   );
 }
-
-export default Login; 
