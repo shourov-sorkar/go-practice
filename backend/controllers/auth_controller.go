@@ -47,11 +47,31 @@ func Register(c *gin.Context) {
 		utils.SendErrorResponse(c, http.StatusBadRequest, "Failed to register user", map[string]string{"error": err.Error()})
 		return
 	}
+
+	collection := database.GetCollection("go_database", "users")
+
+	if err := utils.CheckDuplicate(c, utils.CheckDuplicateParams{
+		Model:      user,
+		Collection: collection,
+		Field:      "username",
+		Value:      user.Username,
+	}); err != nil {
+		return
+	}
+
+	if err := utils.CheckDuplicate(c, utils.CheckDuplicateParams{
+		Model:      user,
+		Collection: collection,
+		Field:      "email",
+		Value:      user.Email,
+	}); err != nil {
+		return
+	}
+
 	user.Password = utils.HashPassword(user.Password)
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
-	collection := database.GetCollection("go_database", "users")
 	_, err := collection.InsertOne(context.TODO(), user)
 	if err != nil {
 		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to register user", map[string]string{"error": err.Error()})
