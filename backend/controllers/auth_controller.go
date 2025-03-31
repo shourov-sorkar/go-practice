@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,6 +19,35 @@ import (
 func Register(c *gin.Context) {
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errorMessages := make(map[string]string)
+			for _, e := range validationErrors {
+				switch e.Field() {
+				case "Name":
+					errorMessages["name"] = "Name is required"
+				case "Username":
+					errorMessages["username"] = "Username is required"
+				case "Email":
+					if e.Tag() == "required" {
+						errorMessages["email"] = "Email is required"
+					} else if e.Tag() == "email" {
+						errorMessages["email"] = "Please enter a valid email address"
+					}
+				case "Password":
+					if e.Tag() == "required" {
+						errorMessages["password"] = "Password is required"
+					} else if e.Tag() == "min" {
+						errorMessages["password"] = "Password must be at least 6 characters long"
+					}
+				}
+			}
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  http.StatusBadRequest,
+				"message": "Validation failed",
+				"details": errorMessages,
+			})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -25,7 +55,28 @@ func Register(c *gin.Context) {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
-	database.GetCollection("go_database", "users").InsertOne(context.TODO(), user)
+	collection := database.GetCollection("go_database", "users")
+	_, err := collection.InsertOne(context.TODO(), user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  http.StatusInternalServerError,
+			"message": "Failed to register user",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"status":  http.StatusCreated,
+		"message": "User registered successfully",
+		"user": gin.H{
+			"id":        user.ID,
+			"name":      user.Name,
+			"username":  user.Username,
+			"email":     user.Email,
+			"createdAt": user.CreatedAt,
+		},
+	})
 }
 
 func Login(c *gin.Context) {
