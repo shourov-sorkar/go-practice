@@ -4,9 +4,8 @@ import (
 	"context"
 	"go-react-mvc/backend/database"
 	"go-react-mvc/backend/models"
-	"net/http"
-
 	"go-react-mvc/backend/utils"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
