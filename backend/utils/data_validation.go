@@ -18,6 +18,10 @@ type CheckDuplicateParams struct {
 	Field      string
 	Value      string
 }
+type RequiredFieldParams struct {
+	Field string
+	Value string
+}
 
 func Capitalize(str string) string {
 	return cases.Title(language.English).String(str)
@@ -33,4 +37,11 @@ func CheckDuplicate(c *gin.Context, params CheckDuplicateParams) error {
 		return fmt.Errorf("%s already exists", params.Field)
 	}
 	return nil
+}
+
+func RequiredFieldValidation(params RequiredFieldParams) string {
+	if params.Value == "" {
+		return params.Field + " is required"
+	}
+	return ""
 }

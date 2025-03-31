@@ -22,21 +22,23 @@ func Register(c *gin.Context) {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
 			errorMessages := make(map[string]string)
 			for _, e := range validationErrors {
+				if e.Tag() == "required" {
+					errorMsg := utils.RequiredFieldValidation(utils.RequiredFieldParams{
+						Field: e.Field(),
+						Value: e.Value().(string),
+					})
+					if errorMsg != "" {
+						errorMessages[e.Field()] = errorMsg
+					}
+					continue
+				}
 				switch e.Field() {
-				case "Name":
-					errorMessages["name"] = "Name is required"
-				case "Username":
-					errorMessages["username"] = "Username is required"
-				case "Email":
-					if e.Tag() == "required" {
-						errorMessages["email"] = "Email is required"
-					} else if e.Tag() == "email" {
+				case "email":
+					if e.Tag() == "email" {
 						errorMessages["email"] = "Please enter a valid email address"
 					}
-				case "Password":
-					if e.Tag() == "required" {
-						errorMessages["password"] = "Password is required"
-					} else if e.Tag() == "min" {
+				case "password":
+					if e.Tag() == "min" {
 						errorMessages["password"] = "Password must be at least 6 characters long"
 					}
 				}
