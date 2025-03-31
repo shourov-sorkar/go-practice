@@ -7,13 +7,15 @@ const HomePage = lazy(() => import('../pages/HomePage').then(module => ({ defaul
 const LoginPage = lazy(() => import('../pages/LoginPage').then(module => ({ default: module.LoginPage })));
 const UserProfilePage = lazy(() => import('../pages/UserProfilePage').then(module => ({ default: module.UserProfilePage })));
 const SettingsPage = lazy(() => import('../pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
+const AdminPage = lazy(() => import('../pages/Admin/AdminPage').then(module => ({ default: module.AdminPage })));
 function Routes() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
     <RouterRoutes>
+    <Route path="/admin" element={<AdminPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<HomePage />} />
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<HomePage />} />
         <Route path="/user-profile" element={<UserProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
