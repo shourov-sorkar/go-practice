@@ -7,6 +7,7 @@ import (
 	"go-react-mvc/backend/models"
 	"go-react-mvc/backend/utils"
 	"net/http"
+	"os"
 
 	"time"
 
@@ -132,7 +133,7 @@ func Login(c *gin.Context) {
 		"exp":      time.Now().Add(time.Hour * 24).Unix(),
 	})
 
-	tokenString, err := token.SignedString([]byte("secret"))
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET_KEY")))
 	if err != nil {
 		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to generate token", map[string]string{"error": err.Error()})
 		return
