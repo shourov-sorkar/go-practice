@@ -41,14 +41,10 @@ func Register(c *gin.Context) {
 					}
 				}
 			}
-			c.JSON(http.StatusBadRequest, gin.H{
-				"status":  http.StatusBadRequest,
-				"message": "Validation failed",
-				"details": errorMessages,
-			})
+			utils.SendErrorResponse(c, http.StatusBadRequest, "Validation failed", errorMessages)
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.SendErrorResponse(c, http.StatusBadRequest, "Failed to register user", map[string]string{"error": err.Error()})
 		return
 	}
 	user.Password = utils.HashPassword(user.Password)
@@ -58,24 +54,16 @@ func Register(c *gin.Context) {
 	collection := database.GetCollection("go_database", "users")
 	_, err := collection.InsertOne(context.TODO(), user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"status":  http.StatusInternalServerError,
-			"message": "Failed to register user",
-			"details": err.Error(),
-		})
+		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to register user", map[string]string{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"status":  http.StatusCreated,
-		"message": "User registered successfully",
-		"user": gin.H{
-			"id":        user.ID,
-			"name":      user.Name,
-			"username":  user.Username,
-			"email":     user.Email,
-			"createdAt": user.CreatedAt,
-		},
+	utils.SendSuccessResponse(c, http.StatusCreated, "User registered successfully", gin.H{
+		"id":        user.ID,
+		"name":      user.Name,
+		"username":  user.Username,
+		"email":     user.Email,
+		"createdAt": user.CreatedAt,
 	})
 }
 
