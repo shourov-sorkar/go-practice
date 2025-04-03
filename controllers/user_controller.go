@@ -17,7 +17,7 @@ func GetUsers(c *gin.Context) {
 
 	totalCount, err := database.GetCollection("go_database", "users").CountDocuments(context.TODO(), bson.M{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count users"})
+		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to count users", map[string]string{"error": err.Error()})
 		return
 	}
 	params.Total = totalCount
@@ -25,17 +25,16 @@ func GetUsers(c *gin.Context) {
 	options := options.Find().SetLimit(int64(params.Limit)).SetSkip(int64(params.Skip))
 	cursor, err := database.GetCollection("go_database", "users").Find(context.TODO(), bson.M{}, options)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch users", map[string]string{"error": err.Error()})
 		return
 	}
 	defer cursor.Close(context.TODO())
 
-	var users []models.User
+	var users []models.UserResponse
 	if err := cursor.All(context.TODO(), &users); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode users"})
+		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to decode users", map[string]string{"error": err.Error()})
 		return
 	}
-
 	c.JSON(http.StatusOK, utils.GetPaginatedResponse(users, params))
 }
 
