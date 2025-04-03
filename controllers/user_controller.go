@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -90,16 +91,24 @@ func UpdateUser(c *gin.Context) {
 func DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 
-	deleteResult, err := database.GetCollection("go_database", "users").DeleteOne(context.TODO(), bson.M{"_id": id})
+	objectId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to delete user",
-		})
+		utils.SendErrorResponse(c, http.StatusBadRequest, "Invalid user ID format", map[string]string{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "User deleted successfully",
+	deleteResult, err := database.GetCollection("go_database", "users").DeleteOne(context.TODO(), bson.M{"_id": objectId})
+	if err != nil {
+		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to delete user", map[string]string{"error": err.Error()})
+		return
+	}
+
+	if deleteResult.DeletedCount == 0 {
+		utils.SendErrorResponse(c, http.StatusNotFound, "User not found", map[string]string{"error": "User not found"})
+		return
+	}
+
+	utils.SendSuccessResponse(c, http.StatusOK, "User deleted successfully", gin.H{
 		"deleted": deleteResult.DeletedCount,
 	})
 }
