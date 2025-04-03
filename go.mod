@@ -1,4 +1,4 @@
-module go-react-mvc
+module go-react-poc
 
 go 1.24.0
 

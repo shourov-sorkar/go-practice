@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"go-react-mvc/backend/controllers"
-	"go-react-mvc/backend/middleware"
+	"go-react-poc/controllers"
+	"go-react-poc/middleware"
 
 	"github.com/gin-gonic/gin"
 )

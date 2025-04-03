@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"fmt"
-	"go-react-mvc/backend/utils"
+	"go-react-poc/utils"
 	"net/http"
 	"os"
 	"strings"

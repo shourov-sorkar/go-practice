@@ -1,8 +1,8 @@
 package main
 
 import (
-	"go-react-mvc/backend/database"
-	"go-react-mvc/backend/routes"
+	"go-react-poc/database"
+	"go-react-poc/routes"
 	"log"
 
 	"github.com/gin-gonic/gin"

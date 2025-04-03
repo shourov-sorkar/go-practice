@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"context"
-	"go-react-mvc/backend/database"
-	"go-react-mvc/backend/models"
-	"go-react-mvc/backend/utils"
+	"go-react-poc/database"
+	"go-react-poc/models"
+	"go-react-poc/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
