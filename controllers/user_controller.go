@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -45,18 +46,71 @@ func GetUsers(c *gin.Context) {
 func CreateUser(c *gin.Context) {
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errorMessages := make(map[string]string)
+			for _, e := range validationErrors {
+				if e.Tag() == "required" {
+					errorMsg := utils.RequiredFieldValidation(utils.RequiredFieldParams{
+						Field: e.Field(),
+						Value: e.Value().(string),
+					})
+					if errorMsg != "" {
+						errorMessages[e.Field()] = errorMsg
+					}
+					continue
+				}
+				switch e.Field() {
+				case "email":
+					if e.Tag() == "email" {
+						errorMessages["email"] = "Invalid email format"
+					}
+				case "password":
+					if e.Tag() == "min" {
+						errorMessages["password"] = "Password must be at least 6 characters long"
+					}
+				}
+			}
+			utils.SendErrorResponse(c, http.StatusBadRequest, "Validation failed", errorMessages)
+			return
+		}
 		utils.SendErrorResponse(c, http.StatusBadRequest, "Failed to create user", map[string]string{"error": err.Error()})
 		return
 	}
 
-	insertResult, err := database.GetCollection("go_database", "users").InsertOne(context.TODO(), user)
+	collection := database.GetCollection("go_database", "users")
+
+	if err := utils.CheckDuplicate(c, utils.CheckDuplicateParams{
+		Collection: collection,
+		Field:      "username",
+		Value:      user.Username,
+	}); err != nil {
+		return
+	}
+
+	if err := utils.CheckDuplicate(c, utils.CheckDuplicateParams{
+		Collection: collection,
+		Field:      "email",
+		Value:      user.Email,
+	}); err != nil {
+		return
+	}
+
+	user.Password = utils.HashPassword(user.Password)
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+
+	_, err := collection.InsertOne(context.TODO(), user)
 	if err != nil {
 		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to create user", map[string]string{"error": err.Error()})
 		return
 	}
 
 	utils.SendSuccessResponse(c, http.StatusCreated, "User created successfully", gin.H{
-		"details": insertResult,
+		"id":        user.ID,
+		"name":      user.Name,
+		"username":  user.Username,
+		"email":     user.Email,
+		"createdAt": user.CreatedAt,
 	})
 }
 
