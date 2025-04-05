@@ -6,6 +6,9 @@ import (
 	"go-react-poc/models"
 	"go-react-poc/utils"
 	"net/http"
+	"reflect"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -42,50 +45,100 @@ func GetUsers(c *gin.Context) {
 func CreateUser(c *gin.Context) {
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-		})
+		utils.SendErrorResponse(c, http.StatusBadRequest, "Failed to create user", map[string]string{"error": err.Error()})
 		return
 	}
 
 	insertResult, err := database.GetCollection("go_database", "users").InsertOne(context.TODO(), user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create user",
-		})
+		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to create user", map[string]string{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
-		"user_id": insertResult.InsertedID,
+	utils.SendSuccessResponse(c, http.StatusCreated, "User created successfully", gin.H{
+		"details": insertResult,
 	})
 }
 
 func UpdateUser(c *gin.Context) {
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-		})
+	userID := c.Param("id")
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		utils.SendErrorResponse(c, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
 
-	filter := bson.M{"_id": user.ID}
-	update := bson.M{"$set": user}
+	var existingUser models.User
+	filter := bson.M{"_id": objectID}
+	err = database.GetCollection("go_database", "users").FindOne(context.TODO(), filter).Decode(&existingUser)
+	if err != nil {
+		utils.SendErrorResponse(c, http.StatusNotFound, "User not found")
+		return
+	}
+
+	updateData := make(map[string]interface{})
+
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		utils.SendErrorResponse(c, http.StatusBadRequest, "Invalid request body", map[string]string{"error": err.Error()})
+		return
+	}
+
+	if len(updateData) == 0 {
+		utils.SendErrorResponse(c, http.StatusBadRequest, "Request body cannot be empty")
+		return
+	}
+
+	validFields := make(map[string]bool)
+	userType := reflect.TypeOf(models.User{})
+	for i := range userType.NumField() {
+		field := userType.Field(i)
+		jsonTag := field.Tag.Get("json")
+		if jsonTag != "" {
+			fieldName := strings.Split(jsonTag, ",")[0]
+			if fieldName != "id" && fieldName != "createdAt" && fieldName != "updatedAt" {
+				validFields[fieldName] = true
+			}
+		}
+	}
+	duplicateFields := make(map[string]string)
+	for field, value := range updateData {
+		if !validFields[field] {
+			utils.SendErrorResponse(c, http.StatusBadRequest, "Invalid field in request body", map[string]string{"error": field + " is not a valid field"})
+			return
+		}
+		if field != "password" {
+			existingValue := reflect.ValueOf(existingUser).FieldByNameFunc(func(name string) bool {
+				f, _ := reflect.TypeOf(existingUser).FieldByName(name)
+				jsonTag := f.Tag.Get("json")
+				fieldName := strings.Split(jsonTag, ",")[0]
+				return fieldName == field
+			})
+
+			if existingValue.IsValid() && value == existingValue.Interface() {
+				duplicateFields[field] = "We already have this value for " + field
+			}
+		}
+	}
+
+	if len(duplicateFields) > 0 {
+		utils.SendErrorResponse(c, http.StatusConflict, "Some fields have same values", duplicateFields)
+		return
+	}
+
+	if password, ok := updateData["password"].(string); ok {
+		updateData["password"] = utils.HashPassword(password)
+	}
+
+	updateData["updatedAt"] = time.Now()
+	update := bson.M{"$set": updateData}
 
 	updateResult, err := database.GetCollection("go_database", "users").UpdateOne(context.TODO(), filter, update)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to update user",
-		})
+		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to update user")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "User updated successfully",
-		"updated": updateResult.ModifiedCount,
-	})
+	utils.SendSuccessResponse(c, http.StatusOK, "User updated successfully", updateResult)
 }
 
 func DeleteUser(c *gin.Context) {
@@ -93,22 +146,20 @@ func DeleteUser(c *gin.Context) {
 
 	objectId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		utils.SendErrorResponse(c, http.StatusBadRequest, "Invalid user ID format", map[string]string{"error": err.Error()})
+		utils.SendErrorResponse(c, http.StatusBadRequest, "Invalid user ID format")
 		return
 	}
 
 	deleteResult, err := database.GetCollection("go_database", "users").DeleteOne(context.TODO(), bson.M{"_id": objectId})
 	if err != nil {
-		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to delete user", map[string]string{"error": err.Error()})
+		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to delete user")
 		return
 	}
 
 	if deleteResult.DeletedCount == 0 {
-		utils.SendErrorResponse(c, http.StatusNotFound, "User not found", map[string]string{"error": "User not found"})
+		utils.SendErrorResponse(c, http.StatusNotFound, "User not found")
 		return
 	}
 
-	utils.SendSuccessResponse(c, http.StatusOK, "User deleted successfully", gin.H{
-		"deleted": deleteResult.DeletedCount,
-	})
+	utils.SendSuccessResponse(c, http.StatusOK, "User deleted successfully", deleteResult)
 }
